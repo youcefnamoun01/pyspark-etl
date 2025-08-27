@@ -1,38 +1,13 @@
-from pyspark.sql import SparkSession
-import pandas as pd
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
+bucket_name = os.getenv("BUCKET_NAME")
 
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BUCKET_NAME = os.getenv("BUCKET_NAME")
+def load_data_from_s3(spark, file_name, sep=","):
+    df = spark.read.option("header", True).option("sep", sep).csv(f"s3a://{bucket_name}/{file_name}")
+    return df
 
-# Créer la session Spark
-spark = SparkSession.builder \
-    .appName("ReadFromS3") \
-    .config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY_ID) \
-    .config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_ACCESS_KEY) \
-    .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com") \
-    .config("spark.jars.packages","org.apache.hadoop:hadoop-aws:3.3.6,com.amazonaws:aws-java-sdk-bundle:1.12.500") \
-    .getOrCreate()
-
-# Lire le fichier CSV depuis S3
-salesDF = spark.read.option("header", "true").csv(f"s3a://{BUCKET_NAME}/transactions.csv")
-
-"""
-# Lire les fichiers CSV
-df_accounts = spark.read.csv("./data/comptes_bancaires.csv", header=True, inferSchema=False, sep=",")
-df_transactions = spark.read.csv("./data/transactions.csv", header=True, inferSchema=False, sep=";")
-df_fr = spark.read.csv("./data/set_fr.csv", header=True, inferSchema=False, sep=";")
-df_global = spark.read.csv("./data/set_global.csv", header=True, inferSchema=False, sep=";")
-
-# Afficher les schémas
-df_accounts.printSchema()
-df_transactions.printSchema()
-df_fr.printSchema()
-df_global.printSchema()
-"""
-
-spark.stop()
+def load_data_from_postgres(spark, jdbc_url, table, properties):
+    df = spark.read.jdbc(url=jdbc_url, table=table, properties=properties)
+    return df
