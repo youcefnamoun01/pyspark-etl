@@ -1,6 +1,8 @@
+import os
 from pyspark.sql import DataFrame
 from utils.schemas import schemas
 
+# Typage des colonnes
 def cast_columns(df: DataFrame, dataset_name: str) -> DataFrame:
     if dataset_name not in schemas:
         raise ValueError(f"Schema not defined for dataset: {dataset_name}")
@@ -10,3 +12,12 @@ def cast_columns(df: DataFrame, dataset_name: str) -> DataFrame:
     for field in schema.fields:
         df = df.withColumn(field.name, df[field.name].cast(field.dataType))
     return df
+
+# Supprimer les lignes contenant des valeurs nulles
+def drop_nulls(df):
+    return df.dropna()
+
+
+# Supprimer les doublons
+def drop_duplicates(df, subset=None):
+    return df.dropDuplicates(subset)
