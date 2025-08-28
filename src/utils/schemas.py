@@ -1,8 +1,4 @@
-from pyspark.sql.types import (
-    StructType, StructField,
-    StringType, IntegerType, DoubleType,
-    DateType, TimestampType
-)
+from pyspark.sql.types import (StructType, StructField, StringType, IntegerType, DoubleType, DateType, TimestampType)
 
 schemas = {
     "transactions": StructType([
