@@ -4,7 +4,7 @@ import sys
 from dotenv import load_dotenv
 from etl.extract import load_data_from_s3
 from etl.transform import cast_columns
-from etl.transform import drop_nulls, drop_duplicates, add_primary_key, add_validity_columns, join_and_process_dataframes, aggregate_by_country_gender_account, aggregate_by_country_department_payment, transaction_stats_by_country
+from etl.transform import drop_nulls, drop_duplicates, add_primary_key, add_validity_columns, join_and_process_dataframes, aggregate_by_country_gender_account, aggregate_by_country_department_payment, stats_transactions
 from etl.load import load_to_db
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -74,16 +74,19 @@ df_joined.printSchema()
 df_agg_country_gender_account = aggregate_by_country_gender_account(df_joined)
 df_agg_country_gender_account.show(10)
 
-# Agr?gation par pays, d?partement et moyen de paiement
+# Agregation par pays, departement et moyen de paiement
 df_agg_country_department_payment = aggregate_by_country_department_payment(df_joined)
 df_agg_country_department_payment.show(10)
 
-df_stats = transaction_stats_by_country(spark, df_joined)
-df_stats.show(truncate=False)
+# Statistic transactions
+df_stats_transact = stats_transactions(df_joined)
+df_stats_transact.show(truncate=False)
 
+
+"""
 load_to_db (df_agg_country_gender_account, "df_agg_country_gender_account")
 load_to_db (df_agg_country_department_payment, "df_agg_country_department_payment")
 load_to_db (df_stats, "df_stats")
-
+"""
 # Arret de la session Spark
 spark.stop()

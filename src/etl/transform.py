@@ -1,6 +1,7 @@
 import os
 from pyspark.sql.functions import concat_ws, sha2, col, lit, current_date
 from pyspark.sql.functions import col, countDistinct, sum as _sum, avg
+from pyspark.sql import functions as F
 from pyspark.sql import DataFrame
 from utils.schemas import schemas
 
@@ -56,9 +57,7 @@ def join_and_process_dataframes(transactions, accounts, info_global):
 
 # Agrégation par pays, genre et type de compte
 def aggregate_by_country_gender_account(df, country_col="Country", gender_col="Gender", account_type_col="account_type", customer_id_col="CustomerID", montant_col="Montant"):
-    agg_df = (df
-              .groupBy(country_col, gender_col, account_type_col)
-              .agg(
+    agg_df = (df.groupBy(country_col, gender_col, account_type_col).agg(
                   countDistinct(col(customer_id_col)).alias("nb_clients"),
                   _sum(col(montant_col)).alias("total_montant")
               )
@@ -67,30 +66,26 @@ def aggregate_by_country_gender_account(df, country_col="Country", gender_col="G
 
 # Agrégation par pays, département et moyen de paiement
 def aggregate_by_country_department_payment(df, country_col="Country", department_col="State", payment_col="MoyenPaiement", customer_id_col="CustomerID", montant_col="Montant"):
-    return df.groupBy(country_col, department_col, payment_col).agg(countDistinct(col(customer_id_col)).alias("nb_clients"),_sum(col(montant_col)).alias("total_montant"))
+    return df.groupBy(country_col, department_col, payment_col).agg(
+        countDistinct(col(customer_id_col)).alias("nb_clients"),_sum(col(montant_col)).alias("total_montant")
+    )
 
-def transaction_stats_by_country(spark, df, country_col="Country", montant_col="Montant", customer_id_col="CustomerID"):
-    countries = [row[country_col] for row in df.select(country_col).distinct().collect()]
-    results = []
+def stats_transactions(df, country_col="Country", montant_col="Montant"):
+    return df.groupBy(country_col).agg(
+        F.avg(montant_col).alias("moyenne"),
+        F.expr(f"percentile_approx({montant_col}, 0.5)").alias("mediane"),
+        F.expr(f"percentile_approx({montant_col}, array(0.25,0.5,0.75))").alias("quantiles")
+    )
 
-    for country in countries:
-        df_country = df.filter(col(country_col) == country)
-        
-        # Statistiques des transactions individuelles
-        quantiles_trans = df_country.approxQuantile(montant_col, [0.25, 0.5, 0.75], 0.01)
-        q1_trans, median_trans, q3_trans = quantiles_trans
-        mean_trans = df_country.agg(avg(col(montant_col))).first()[0]
-        
-        # Statistiques des sommes par client
-        sum_by_client = df_country.groupBy(customer_id_col).agg(_sum(col(montant_col)).alias("client_sum"))
-        quantiles_client = sum_by_client.approxQuantile("client_sum", [0.25, 0.5, 0.75], 0.01)
-        q1_client, median_client, q3_client = quantiles_client
-        mean_client = sum_by_client.agg(avg(col("client_sum"))).first()[0]
-        
-        results.append((country, q1_trans, median_trans, mean_trans, q3_trans, 
-                       q1_client, median_client, mean_client, q3_client))
+
+def stats_totaux_par_pays(df, montant_col="Montant", country_col="Country"):
+    # Somme totale par pays
+    df_somme_pays = df.groupBy(country_col).agg(F.sum(montant_col).alias("total_montants"))
     
-    schema = ["Country", "Trans_Q1", "Trans_Median", "Trans_Mean", "Trans_Q3",
-              "Client_Q1", "Client_Median", "Client_Mean", "Client_Q3"]
-    
-    return spark.createDataFrame(results, schema=schema)
+    # Stats globales sur les totaux
+    df_global_stats = df_somme_pays.agg(
+        F.avg("total_montants").alias("moyenne"),
+        F.expr("percentile_approx(total_montants, 0.5)").alias("mediane"),
+        F.expr("percentile_approx(total_montants, array(0.25,0.5,0.75))").alias("quantiles")
+    )
+    return df_global_stats
