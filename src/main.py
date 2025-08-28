@@ -83,10 +83,9 @@ df_stats_transact = stats_transactions(df_joined)
 df_stats_transact.show(truncate=False)
 
 
-"""
 load_to_db (df_agg_country_gender_account, "df_agg_country_gender_account")
 load_to_db (df_agg_country_department_payment, "df_agg_country_department_payment")
-load_to_db (df_stats, "df_stats")
-"""
+load_to_db (df_stats_transact, "df_stats_transact")
+
 # Arret de la session Spark
 spark.stop()
